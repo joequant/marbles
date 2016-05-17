@@ -129,7 +129,7 @@ var part1 = require('./utils/ws_part1');
 var part2 = require('./utils/ws_part2');
 var ws = require('ws');
 var wss = {};
-var Ibc1 = require('ibm-blockchain-js');
+var Ibc1 = require('hyperledger-fabric-js');
 var ibc = new Ibc1();
 
 // ==================================
