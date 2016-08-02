@@ -2,7 +2,7 @@
 
 ##BEFORE YOU RUN
 - This tutorial assumes you have completed [Part 1](./tutorial_part1.md)
-- The underlying network for this application is the open blockchain fabric code that was contributed by IBM to the Linux Foundation's Hyperledger project. They have extensive [Fabric Documentation](https://github.com/openblockchain/obc-docs)
+- The underlying network for this application is the [Hyperledger Fabric](https://github.com/hyperledger/fabric/tree/master/docs), a Linux Foundation project.
 - The expectations of this application are to test the JS SDK, guide its development and to aid a developer become familiar with our SDK + chaincode.
 - This is a `very simple` asset transfer demonstration.  Two users can create and exchange marbles with each other.
 - There are two components to this demo each with their own repo. The node.js web application and chaincode. The chaincode repo can be found here: [https://github.com/ibm-blockchain/marbles-chaincode](hhttps://github.com/ibm-blockchain/marbles-chaincode).  You are currently inside the node.js repo.
@@ -10,7 +10,7 @@
 ***
 
 ##Part 2 Goals
-- User's can advertise to trade/exchange their marbles (ie willing to trade large red for large blue/yellow/green)
+- Users can advertise to trade/exchange their marbles (ie willing to trade large red for large blue/yellow/green)
 - User can remove their pending open trades
 - User identity (fake login as "bob" or "leroy")
 - User actions are restricted based on their identity
@@ -19,11 +19,12 @@
 
 #Prereq:
 1. You have completed [Part 1](./tutorial_part1.md)
-1. Bluemix ID https://console.ng.bluemix.net/ (needed to create your IBM Blockchain network)
+1. Bluemix ID https://console.ng.bluemix.net/ (needed to create your IBM Blockchain network if local network is not setup)
+1. If you want to run Marbles on a local blockchain network (ie. not using Bluemix) you will need to have completed the Hyperledger Fabric [development setup](https://github.com/hyperledger/fabric/blob/master/docs/Setup/Network-setup.md).
 1. [Node.js](https://nodejs.org/en/download/) 0.12.0+ and npm v2+ (only needed if you want to run the app locally, npm comes with node.js)
-1. Node.js + express experience. Marbles is a very simple blockchain app but its still a failry involved node app.  You  should be comfortable with node and the express module.
+1. Node.js + express experience. Marbles is a very simple blockchain app but it’s still a fairly involved node app.  **You should be comfortable with node** and the express module.
 1. GoLang Environment (only needed to build your own chaincode, not needed if you just run the marbles app as is)
-1. You are at least partially aware of the term 'chaincode', 'ledger', and 'peer' in a blockchain context. [Term Help](https://github.com/openblockchain/obc-docs/blob/master/glossary.md)
+1. I highly recommend you complete [learn chaincode](https://github.com/IBM-Blockchain/learn-chaincode) first
 
 
 #Summary
@@ -32,30 +33,40 @@ Now I know there are 4 goals listed above, but really there are only 2 major cha
 We are going to (1) create a "login" for each user. 
 "Login" is in quotes because we will not be requiring any password to login. 
 The user's selection of the desired username will be sufficient. 
-Having identify allows us to prefill this user's actions with their username and allows us to restrict their actions. 
+Having an identify will allows us to prefill this user's actions with their username as well as allow the app to restrict their actions. 
 ie. The user Bob should not be able to simply take a marble from Leroy, though he will be free to give away a marble to Leroy. 
 (2) Users can now create an 'open trade'. Meaning they can create a contract of sorts that says "I am willing to give up my Large Blue marble for a Large Green marble". 
 Another user can "login" our app and execute the trade if he has a green marble and wants a blue one.
 This is still a simplistic asset transfer demo using a monolithic chaincode model. 
-There will be no user security, crypto signatures or privacy until Part 3.
+There will be no user security, crypto signatures or privacy until Part 3 [TBA].
 
 #Identity
-If you have already fired up/seen Part 2 then you've probably saw the new trade navigation link and the new "login" section. 
+If you have already seen Part 2 on accident, then you've probably saw the new trade navigation link and the new "login" section. 
 The trading example we are building to requires knowing which user we are impersonating so we have built a fake login. 
+Go ahead and browse to your Part 2's url.
+If you are running marbles locally this will be [http://localhost:3000/p2](http://localhost:3000/p2). 
+If you are running marbles somewhere else it will be your hostname with a `/p2` at the end of your domain or IP.
+
 Click the "HI [USERNAME]" part in the top right and you can select which user you want to be. 
 We will not be building any type of security mechanism yet. 
 The client side JS will be in control of keeping track of which user is logged in. 
-There is a global variable called `user` and it will have a username field with an all lowercase values. 
+There is a global variable in this JS code called `user`.
+Its an object  and it will have a username string field in lowercase. 
 The JS that controls this is in `/public/part2.js`.
+
+__./public/part2.js__
 
 ```js
 	var user = {username: "bob"};
 ```
 
+That’s it for now. 
+Just keep this in mind as we leverage who the user is and accomplish some actions later. 
+
 #Trading
-Ok let’s do some real work again. 
-Now last time we created stuff to be stored we created individual key/value pairs for each marble. 
-Let’s try something different this time and use 1 key/value pair to track all known trades. 
+Ok let’s do some real work again and look at chaincode. 
+Now last time we created stuff to be stored we created **individual** key/value pairs **for each** marble. 
+Let’s try something different this time and use **one** key/value pair to track **all** known trades. 
 This will be an array of open trade structs. 
 The open trades themselves will be a struct of things like the username, timestamp, what they are willing to trade away and what they want in return. 
 The whole data layout is below.
@@ -122,7 +133,7 @@ __Invoke()__
 	}
 ```
 
-Next build up the function itself.
+Next we write the function itself.
 
 **open_trade()**
 
@@ -199,15 +210,15 @@ Next build up the function itself.
 ```
 
 I've left a lot of debug prints and even some debug key/value pairs so you can inspect the code flow yourself. 
-Its essentially the same as our `init_marble()` function just this one has nested structures. 
+It’s essentially the same as our `init_marble()` function we covered in Part 1. 
+It’s just this one has nested structures. 
 We build up each individual struct and then append them into the array name `trades`. 
 One non-obvious decision I made here is that we will find trades again by looking at its timestamp field. 
-ie. a unix timestamp in milliseconds is my unique ID for this trade.
+ie. a unix timestamp in milliseconds is my unique ID for a particular trade.
 
-The last thing we need to do is close a trade. 
+The next thing we need to do is close a trade. 
 I created another GoLang function named `perform_trade`. 
 This function will take in the ID of a trade (its timestamp), the user who is closing the trade, the name of a marble they are willing to give up and finally the color/size marble they would like in return. 
-
 
 **perform_trade()**
 
@@ -276,13 +287,8 @@ It does this with the function `findMarble4Trade`.
 We then feed this marble into our previously created `set_user` function and complete the trade. 
 Lastly we close out the trade by removing it from the array of open trades.
 
-That’s it! Now we can call this cc code from our Node.js like we did in Part 1. 
-Simply use `chaincode.invoke.open_trade(args)` in our server side JS to create the trade and `chaincode.invoke.perform_trade(args)` to close it out. 
-This code can be found in `/utils/ws_part2.js`.
-
 The code above uses a function called `findMarble4Trade()`. 
-Lets look at that in more detail.
-
+Let’s look at that in more detail.
 
 **findMarble4Trade()**
 
@@ -338,16 +344,22 @@ We `getState()` on `marbleIndexStr` then iter and read the state of each marble.
 Once we find a marble that fits the requirements (owner, size and color are okay) we return the marble. 
 Else we return an error and `perform_trade()` will fail as expected.
 
+That’s it! Now we can call this cc code from our Node.js like we did in Part 1. 
+Simply use `chaincode.invoke.open_trade(args)` in our server side JS to create the trade and `chaincode.invoke.perform_trade(args)` to close it out. 
+This code can be found in `/utils/ws_part2.js`.
+
 With these new additions we can close out Part 2. 
 There are a few more 'niceties' that I created such as removing open trades or options from an open trade if the user no longer has such a marble. 
 The reason we need such functionality is because it is possible for a user to lose a marble he was once willing to give away. 
-Thus he is no longer able to for fill his own trade. 
-The current cc code will find such events and remove the option from the trade and if the trade has no more willing options it will remove the trade itself.
+Thus he is no longer able to for fill a trade he previously created. 
+The current cc code will find such events and remove the option from the trade and if the trade has no more willing options it will remove the whole trade.
+
 There is also a `remove_trade()` cc function to allow the user to cancel his trade. 
 The code for these functions can be found in the part2 folder in the cc repo.
 
-In part 3 we will discuss authentication/authorization, but in the meantime feel free to build off this demo and share your results!
+In Part 3 we will discuss authentication/authorization, but in the meantime feel free to build off this demo and share your results!
 
+***
 
 #Trouble Shooting
 Stuck? Try my handy [trouble shooting guide](./i_lost_my_marbles.md).

@@ -1,10 +1,10 @@
 #Marbles Part 1 - Demo
 
 ##BEFORE YOU RUN
-- The underlying network for this application is the open blockchain fabric code that was contributed by IBM to the Linux Foundation's Hyperledger project. They have extensive [Fabric Documentation](https://github.com/openblockchain/obc-docs)
-- The expectations of this application are to test the JS SDK, guide its development and to aid a developer become familiar with our SDK + chaincode.
+- The underlying network for this application is the [Hyperledger Fabric](https://github.com/hyperledger/fabric/tree/master/docs), a Linux Foundation project.
+- The expectations of this application are to test the JS SDK, guide its development and to aid a developer in becoming familiar with our SDK + chaincode.
 - This is a `very simple` asset transfer demonstration.  Two users can create and exchange marbles with each other.
-- There will be multiple parts. Part 1 and 2 are complete  [2/15/2016]
+- There will be multiple parts. Part 1 and 2 are complete [2/15/2016]
 - There are two components to this demo each with their own repo. The node.js web application and chaincode. The chaincode repo can be found here: [https://github.com/ibm-blockchain/marbles-chaincode](hhttps://github.com/ibm-blockchain/marbles-chaincode).  You are currently inside the node.js repo.
 
 ***
@@ -12,7 +12,7 @@
 ##Part 1 Goals
 - User can create a marble and store it in the chaincode state
 - User can read and display all marbles in the chaincode state
-- User can transfer marble to another user
+- User can transfer a marble to another user
 - User can delete a marble
 - Server pushes block/marble updates to client when a new block event has occurred
 - Deployable on Bluemix
@@ -20,12 +20,13 @@
 ***
 
 #Prereq:
-1. Bluemix ID https://console.ng.bluemix.net/ (needed to create your IBM Blockchain network if local network is not deployed)
+1. Bluemix ID https://console.ng.bluemix.net/ (needed to create your IBM Blockchain network if local network is not setup)
+1. If you want to run Marbles on a local blockchain network (ie. not using Bluemix) you will need to have completed the Hyperledger Fabric [development setup](https://github.com/hyperledger/fabric/blob/master/docs/Setup/Network-setup.md).
 1. [Node.js](https://nodejs.org/en/download/) 0.12.0+ and npm v2+ (only needed if you want to run the app locally, npm comes with node.js)
-1. Node.js + express experience. Marbles is a very simple blockchain app but its still a failry involved node app.  You  should be comfortable with node and the express module.
+1. Node.js + express experience. Marbles is a very simple blockchain app but it’s still a fairly involved node app.  **You should be comfortable with node** and the express module.
 1. GoLang Environment (only needed to build your own chaincode, not needed if you just run the marbles app as is)
-1. You are at least partially aware of the term 'chaincode', 'ledger', and 'peer' in a blockchain context. [Term Help](https://github.com/openblockchain/obc-docs/blob/master/glossary.md)
-2. If Marbles wants to be run onto a local BlockChain network (not using Bluemix) you will also need to have all the [development setup prerequisites](https://github.com/openblockchain/obc-docs/blob/master/dev-setup/devenv.md#prerequisites).
+1. I highly recommend you complete [learn chaincode](https://github.com/IBM-Blockchain/learn-chaincode) first
+
 
 
 #Application Background
@@ -47,15 +48,28 @@ Attributes of a marble:
 We are going to create a Web UI that can set these values and pass them to the chaincode. 
 Interacting with the cc is done with a HTTP REST call to a peer on the network. 
 The ibc-js SDK will abstract the details of the REST calls away.
-This allow us to use dot notation to call our GoLang functions (such as `chaincode.invoke.init_marble(args)`).
+This allows us to use dot notation to call our GoLang functions (such as `chaincode.invoke.init_marble(args)`).
 
 #Application Communication Flow
 
+![](/doc_images/comm_flow.png)
+
 1. The user will interact with our Node.js application in their browser.
-1. This client side JS code will open a websocket to the backend Node.js application. The client JS will send msgs to the backend when the user interacts with the site.
+1. This client side JS code will open a websocket to the backend Node.js application. The client JS will send messages to the backend when the user interacts with the site.
 1. The backend Node.js will send HTTP requests (via the SDK) to a blockchain peer to carry out the user's actions.
 1. The peer will communicate to its chaincode container at its leisure. Note that the previous HTTP request was really a 'submission' of chaincode to be run, it will actually run at a later date (usually milliseconds).
 1. The cc container will carry out the desired operation and record it to the ledger. ie create/transfer a marble.
+
+#Context Clues
+There are 3 distinct parts/worlds that you need to keep straight. 
+They should be thought of as isolated environments that communicate over HTTP. 
+This walk through will jump from one to another as we setup and explain each part. 
+It's important to identify which part is which. 
+There are certain keywords and context clues to help you identify one from another.
+
+1. The Chaincode Part - This is GoLang code that runs on/with a peer on your blockchain network. Also called `cc`. Anything blockchain happens here.
+1. The Client Side JS Part - This is JavaScript code running in the user's browser. User interaction code happens here.
+1. The Server Side JS Part - This is JavaScript code running our application's backend. ie `Node.js` code which is the heart of Marbles! Sometimes referred to as our `node` or `server` code. Functions as the glue between the user and our blockchain.
 
 #Chaincode
 To understand what is going on we need to start looking at the chaincode.  The complete cc code for this example can be found [here](https://github.com/IBM-Blockchain/marbles-chaincode/blob/master/hyperledger/part1/part1_chaincode.go). 
@@ -98,14 +112,17 @@ __Invoke()__
 	}
 ```
 
-The SDK we have built will be able to find the names of the functions listed in Invoke(). 
+For example our cc code will detect when the variable `function` is equal to "write" and will call `t.Write()`.
+The SDK we are using can parse and find the name of the functions listed in this `Invoke()` code. 
 It will then give you a dot notation to use them in your Node.js application. ie:
 	
 ```js
 	chaincode.query.read(["abc"]);               //calls the Query() function which will read the var "abc"
-	chaincode.invoke.write(["stuff", "test"]);    //invokes the cc funciton Write() function which will write test to "stuff" in the cc state
+	chaincode.invoke.write(["stuff", "test"]);    //invokes the cc function Write() function which will write test to "stuff" in the cc state
 	chaincode.invoke.rule_the_world(["tomrrow"]); //invokes the cc function "rule_the_world" (assuming it exists)
 ```
+
+For example in our node.js code if we call `chaincode.invoke.write()` it will generate a HTTP request to the peer which ultimately runs the `t.Write()` chaincode function.
 
 Note that the `chaincode.query.read()` will call the `Query()` function in our chaincode. 
 This function is not listed in `Invoke()` because it not an invocation. 
@@ -151,7 +168,7 @@ __Query()__
 	}
 ```
 
-The `read()` function gives us some insight to how variables are retrieved from cc state. 
+The `read()` cc function gives us some insight to how variables are retrieved from cc state. 
 It is a simple matter of using `stub.GetState()` to fetch the value from the key/value pair.
 The return value of query is an array of bytes. 
 This array gets passed to the peer's REST API code which will format it into a JSON string for the response. 
@@ -187,8 +204,8 @@ __Write()__
 The `Write()` function is equally simple but unlike query, write is found in our `Invoke()` function. 
 `Write()` uses `stub.PutState(name, value)` to store the key/value pair. 
 Note that the name is a string, and that value is an array of bytes. 
-Most of the chaincode we will create will mimic parts of read or parts of write. 
 
+Most of the chaincode we will create will mimic parts of read or parts of write. 
 What I mean by that is that we will use `PutState()` and `GetState()` as the basic building blocks for any cc functions we need to create. 
 Marbles is going to use something that I'm going to call a "monolithic chaincode model". 
 It just means we will have 1 chaincode for the entire app. 
@@ -205,20 +222,19 @@ Choose 1 option below:
 
 (1) Deploy the app and network at once on Bluemix.  Simply click this button &nbsp;&nbsp; 
 [![Deploy to Bluemix](https://bluemix.net/deploy/button.png)](https://bluemix.net/deploy?repository=https://github.com/ibm-blockchain/marbles.git)
-then continue [here](#run).
+then continue [here](#use).
 
 `OR`
 
-(2) Deploy the app on my local machine, connecting to a Bluemix IBM BlockChain network - [instructions](#network)
+(2) Deploy the app on my local machine, connecting to a Bluemix IBM Blockchain network - [instructions](#manbluenetwork)
 
 `OR`
 
-(3) Deploy the app on my local machine, connecting to a [locally deployed](https://github.com/hyperledger/fabric/blob/master/docs/dev-setup/devnet-setup.md) IBM BlockChain network. - [instructions](/local_blockchain.md)
+(3) Deploy the app wherever and connect to a local/remote Hyperledger Network - [instructions](#confignetwork)
 
-
-# <a name="network"></a>Manual Network Setup:
+# <a name="manbluenetwork"></a>Manual Bluemix Network:
 Don't fret, "manual" setup means I will guide you to click on a particular button and fill out a text input field or two. 
-We have created a Bluemix tile that will create you your own personal blockchain network. 
+There is a Bluemix tile that will create you your own personal blockchain network. 
 All you have to do is find the tile and give the network a name. 
 
 1. First login to [Bluemix](https://console.ng.bluemix.net)
@@ -226,7 +242,7 @@ All you have to do is find the tile and give the network a name.
 
 ![](/doc_images/bluemix_ibc1.png)
 
-1. Find and click the "Blockchain" tile (you can use the navigation on the left to filter the list: Services > Network)
+1. Find and click the "Blockchain" tile. You can use the navigation on the left to filter the list: "Services" > "Web and Application" or type `blockchain` in the search box.
 
 ![](/doc_images/bluemix_ibc2.png)
 
@@ -241,15 +257,15 @@ All you have to do is find the tile and give the network a name.
 
 1. If all goes well you should be on the manage screen for your new service. Click the "LAUNCH" button to see the dashboard for your network. 
 	- You should see a few peers listed in the first table
-	- from here you can monitor if your peers crash, if the chaincode containers are running, and view logs for all
+	- From here you can monitor if your peers crash, if the chaincode containers are running, and view logs for all
 
 ![](/doc_images/bluemix_ibc4.png)
 
 ![](/doc_images/bluemix_ibc5.png)
 
-(Note if you find yourself on the Bluemix Dashboard and want to get back to this service screen just click the tile name "myblockchain" in the "Services" section)
+(Note if you find yourself on the main Bluemix Dashboard and want to get back to this service screen just click the tile name "myblockchain" in the "Services" section)
 
-The network is all setup.  Now we need to copy the peer data and pass it to our application (only need this step if we run the app locally).
+The network is all setup.  **Now we need to copy the peer data and pass it to our marbles node.js application** (only need this step if we run the app locally).
 
 1. Go back to your Bluemix Dashboard page
 1. Click the "myblockchain" tile in you Bluemix Dashboard
@@ -257,35 +273,88 @@ The network is all setup.  Now we need to copy the peer data and pass it to our 
 1. Copy the value of the whole JSON object to the `mycreds.json` file in the root of this project.
 	1. If for some reason you don't see any credentials click the "ADD CREDENTIALS" button and let the page refresh
 
-#<a name="run"></a>Run Marbles on Local Machine
+1. continue by [running the marbles app](#runlocal)
+
+#<a name="confignetwork"></a>Configure the SDK for your Blockchain Network
+The app is setup to either grab network configuration data from Bluemix via VCAP Service's environmental variable OR to load the hard coded list in `mycreds.json`. 
+
+- If you are running the app locally it will not find VCAP. Thus you need to edit `mycreds.json` 
+- If you are hosting the app on Bluemix, but wish to use a different network you need to edit `mycreds.json`
+- If you are hosting the app on Bluemix, and wish to use a Bluemix network you do not need to touch `mycreds.json`
+	- Simply "bind" the Bluemix service to your application using the Bluemix's dashboard UI. [Binding Instructions](https://console.ng.bluemix.net/docs/services/reqnsi.html#add_service)
+
+Marbles is already coded to toggle the SDK between VCAP_SERVICES and `mycreds.json` depending on the environment.
+All we have to do is populate `mycreds.json` with information about our network.
+If you want more details of setup options then take a look at the [SDK's documentation](https://github.com/IBM-Blockchain/ibm-blockchain-js).
+Below is a sample showing the information that must be in the JSON file. 
+
+You may see other example JSON files that include much more information. 
+Those extra fields are either legacy or simply extra. 
+You only need to set the fields that are in the sample below:
+
+__sample mycreds.json__
+
+```js
+{
+  "credentials": {
+    "peers": [
+      {
+        "api_host": "12345678-abcde-_vp0.blockchain.ibm.com",   //hostname or ip of peer
+        "api_port_tls": 443,                                    //https port (optional)
+        "api_port": 80,                                         //http port
+        "id": "12345678-abcde-4d6f-_vp0",                       //unique id of peer
+      },
+    ],
+    "users": [
+      {
+        "enrollId": "user_type1_1234567890",                     //enroll username
+        "enrollSecret": "1234567890"                             //enroll's secret
+      }
+    ]
+  }
+}
+```
+
+You must have the same number of entries in the `peer` array as the `users` array unless the network does not use Membership Services. 
+You can omit the `users` array entirely if the network does not use Membership Services. 
+Marbles only talks to 1 peer so you only need 1 peer in the array. 
+You can omit the field `api_port_tls` if the network does not support TLS. 
+If you are not using TLS you should also change the `options.tls` field to `false` on [line 200](app.js#L200) of app.js.
+All networks created with the Bluemix service will have Membership Services and support TLS exclusively.
+Once you have edited `mycreds.json` you are ready to run Marbles.
+
+#<a name="runlocal"></a>Run Marbles on Local Machine
 Now we are ready to work on the application! 
-The app is setup to either grab network data from Bluemix via VCAP Service's environmental variable OR to load the hard coded list in `./app.js`. 
-Since we are running the app locally it will not find VCAP and will use the hard coded list. 
-You should have replaced the hard coded data with your personal network data in the last section. 
-If you haven't, go ahead and do it now (instructions are [above](#network)).
 
 1. To run the app locally we need to get these files onto your machine
 	- If you have Git installed then browse a command prompt/terminal to a desired working directory and type `git clone https://github.com/IBM-Blockchain/marbles`
-		- follow any login prompts with your GitHub account
+		- Follow any login prompts with your GitHub account
 	- If you do not have Git then [download the zip](https://github.com/IBM-Blockchain/marbles/archive/master.zip) and extract it in your desired working directory.
 1. Next we need to install our dependencies. Open a command prompt/terminal and browse to the root of this project.
 1. In the command prompt type:
 	
-		> npm install
 		> npm install gulp -g
-		> gulp
+		> npm install
 		
+1. [Configure](#confignetwork) the SDK to use your preferred blockchain network. Jump back here when finished.
+
+1. Get back to your command prompt and browse to the root of this project. Run Marbles with the command:
+	
+		> gulp
+
 1. If all goes well you should see this message in the console:
 	
 		--------------------------------- Server Up - localhost:3000 ------------------------------------
 		
 1. The app is already coded to auto deploy the chaincode.  You should see further message about it deploying.
- **[IMPORTANT]** You will need to wait about 60 seconds for the application to fully deploy our cc.
+ **[IMPORTANT]** You will need to wait about 60 seconds for the cc to fully deploy. The SDK will do the waiting for us by stalling our callback.
  
-1. Make sure you wait for this all clear message. 
+1. Once you see this message you are good to go: 
 		
 		[ibc-js] Deploying Chaincode - Complete
 		---------------------------------------- Websocket Up ------------------------------------------
+
+1. Continue by [using the marbles app](#use)
 		
 #Run Marbles on Bluemix (command line)
 1. This app is already ready to run on Bluemix
@@ -300,9 +369,9 @@ If you haven't, go ahead and do it now (instructions are [above](#network)).
 	> (follow the prompts)  
 	> cf push YOUR_APP_NAME_HERE  
 	
-1. The application will bind to the service "myblockchain" and grab the peer data from VCAP_SERVICES. Code for this is in app.js line 153ish
+1. The application will bind to the service "myblockchain" and grab the peer data from VCAP_SERVICES. Code for this is in [app.js](app.js#L153)
 
-#<a name="run"></a>Use Marbles App
+#<a name="use"></a>Use Marbles App
 1. Open up your browser and browse to [http://localhost:3000](http://localhost:3000) or your Bluemix www route.
 1. You should be staring at our Marbles Part 1 application
 	- Part 2 can be found at [http://localhost:3000/p2](http://localhost:3000/p2), but lets stay on Part 1 for now  
@@ -310,13 +379,13 @@ If you haven't, go ahead and do it now (instructions are [above](#network)).
 1. Fill out all the fields, then click the "Create" button
 1. It should have flipped you back to "Home" and you should see that a new marble has been created
 	- If not click the "Home" tab again or refresh the page
-1. Next lets trade a marble.  Click and drag one marble from one person's list to another. It should temporary disappear and then auto reload the marbles in their new state. 
+1. Next let’s trade a marble.  Click and drag one marble from one person's list to another. It should temporary disappear and then auto reload the marbles in their new state. 
 	- If not refresh the page
 
 
 
 #SDK / IBM Blockchain Deeper Dive
-Before we examine how marbles works lets examine what the SDK did to get our cc onto the network.
+Before we examine how marbles works let’s examine what the SDK did to get our cc onto the network.
 The options argument for `ibc.load(options)` contains many important things. 
 An abbreviated version is below:
 
@@ -331,7 +400,7 @@ An abbreviated version is below:
 				"id": "xxxxxx-xxxx-xxx-xxx-xxxxxxxxxxxx_vpx",
 			}],
 			users:  [{
-				"enrollID": "user1",
+				"enrollId": "user1",
 				"enrollSecret": "xxxxxxxx"
 			}]
 		},
@@ -344,27 +413,27 @@ An abbreviated version is below:
 	ibc.load(options, cb);
 ```
 
-This network has membership security; we can tell because there are enroll IDs/secrets in the network.users array. 
-This means the peers will be expecting a validated `enrollID` on most API requests. 
-Therefore the first step is we need to use the /registrar API endpoint to register an `enrollID`. 
-This creates a binding of sorts between the ID and the peer such that this `enrollID` cannot be used on any other peer. 
+This network has membership security; we can tell because there are enroll IDs/secrets in the `network.users` array. 
+This means the peers will be expecting a validated `enrollId` on most API requests. 
+Therefore, the first step is we need to use the /registrar API endpoint to register an `enrollId`. 
+This creates a binding of sorts between the ID and the peer such that this `enrollId` cannot be used on any other peer. 
 It's relatively safe to think of this step as registering an API key with a particular peer. 
 The SDK does almost all the work here for us. 
-It will first parse network.peers[] and network.users[] and run 1 POST /registrar HTTP request per peer. 
-It will send the first `enrollID` to the first peer, and the second ID to the second peer and so on until every peer has 1 ID. 
-The details of all rest calls are taken care of by the SDK but if you are curious we have [Swagger Documentation](https://obc-service-broker-staging.stage1.mybluemix.net/swagger) on the IBM Blockchain peer APIs. 
+It will first parse `network.peers[]` and `network.users[]` and run 1 POST /registrar HTTP request per peer. 
+It will send the first `enrollId` to the first peer, and the second ID to the second peer and so on until every peer has 1 ID. 
+The details of all rest calls are taken care of by the SDK but if you are curious we have [Swagger Documentation](https://obc-service-broker-prod.mybluemix.net/swagger) on the IBM Blockchain peer APIs. 
 At the end of this step we are ready to deploy our chaincode. 
 
 Before we deploy though, the SDK will download and parse the chaincode. 
 This is when it builds up the dot notation we can use to ultimately call cc functions from JS. 
-Once its done downloading/parsing it runs the /devops/deploy HTTP request. 
+Once it’s done downloading/parsing it runs the deploy HTTP request. 
 We should receive a hash in the response that is unique to this chaincode. 
-This hash will be used along with the registered `enrollID` in all future invocations / queries against this cc. 
+This hash will be used along with the registered `enrollId` in all future invocations / queries against this cc. 
 
 
 #Marbles Deeper Dive
 Hopefully you have successfully traded a marble or two between users. 
-Lets look at how this was done by starting at the chaincode.
+Let’s look at how this was done by starting at the chaincode.
 
 __set_user()__
 
@@ -447,11 +516,11 @@ __/utils/ws_part1.js__
 ```
 
 The `chaincode.invoke.set_user([data.name, data.user]);` line is where we submit our request to run the chaincode function. 
-It is passing to our GoLang set_user function an array of strings argument containing the name of the marble and the name of it's new owner. 
-By "passing" I mean it is really sending a HTTP POST /devops/invoke request to one of the peers in our network. 
+It is passing to our GoLang `set_user` function an array of strings argument containing the name of the marble and the name of its new owner. 
+By "passing" I mean it is really sending a HTTP POST `/chaincode` invoke request to one of the peers in our network. 
 This peer will in turn call the chaincode and actually pass the argument to the cc function. 
 The details of which peer and the exact rest call are taken care of in our ibc-js SDK. 
-For your own curiosity the details of the Invoke API call can be found [here](https://github.com/openblockchain/obc-docs/blob/master/api/Openchain%20API.md#devops)
+For your own curiosity the details of the Invoke API call can be found [here](https://github.com/hyperledger/fabric/blob/master/docs/API/CoreAPI.md#chaincode)
 This code itself was called in response to a websocket message that originated on our user's browser.
 
 Pretty simple, now lets look 1 more step up to how we sent this websocket message.
@@ -468,7 +537,9 @@ __/public/js/part1.js__
 			}
 		}
 	});
-	
+
+	...
+
 	function transfer(marbleName, user){
 		if(marbleName){
 			console.log('transfering', marbleName);
@@ -489,7 +560,7 @@ With these tools we get a droppable event trigger.
 In the above code we have attached it to #user2wrap and #user1wrap div elements. 
 When the event fires we first check to see if this marble actually moved owners, or if it was just picked up and dropped back down. 
 If its owner has changed we go off to the `transfer()` function.
-This function creates a json message with all the needed data and uses our websocket to send it with `ws.send()`.
+This function creates a JSON message with all the needed data and uses our websocket to send it with `ws.send()`.
 
 __Monitor-Blockheight__
 
@@ -503,8 +574,7 @@ The Plan:
 1. At some point that event will be written to a block
 1. The SDK detects a new block has been written
 1. Let’s assume this new block contains our user's trade action, therefore let’s read all marble states
-	- this assumption is temporary
-1. Broadcast the marble states to any connected peers
+1. Broadcast the marble states to any connected websockets
 1. Clients (aka browsers) receive the new marble states and redraw them
 
 __./app.js__ (abbreviated)
@@ -571,15 +641,20 @@ Our code then goes off and starts 4 things.
 1. It fires off a request to the peer to read the block's stats
 1. It sends a reset UI message to all clients through the websocket
 1. It fires off a request to the cc to read marble index and then reads each marble
-1. It fires off a request to the cc to read the open trades
+1. It fires off a request to the cc to read the open trades (used in Part 2)
 
-The results will then be sent to the clients via the websocket (in indivdual messages).
+The results will then be sent to the clients via the websocket (in individual messages). 
+One more small note is about this line `stats.height = chain_stats.height - 1;`. 
+We subtract 1 because the API `/chain` tells me the number of blocks.
+But the API `/chain/blocks/<block #>` takes the id of a block which is indexed to 0.
+So if we want details on blockheight #5, we build a request for `/chain/blocks/4`.
 
 
 That’s it! Hope you had fun trading some marbles in part 1. 
 Next up is [Marbles Part 2](./tutorial_part2.md). 
-Part 2 adds some new chaincode functions making it a little more nifty.
+Part 2 adds some new chaincode functions making it a little niftier.
 
+***
 
 #Trouble Shooting
 Stuck? Try my handy [trouble shooting guide](./i_lost_my_marbles.md).

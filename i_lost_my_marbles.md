@@ -57,8 +57,8 @@ The SDK will print messages similar to the ones below to the console:
 	
 	[ibc-js] Peer:  vp1-3a82c724-6934-4575-87d8-047eefdcf25d_vp1-api.blockchain.ibm.com:80
 	[ibc-js] Peer:  vp2-3a82c724-6934-4575-87d8-047eefdcf25d_vp2-api.blockchain.ibm.com:80
-	[ibc-js] Registering  vp1-3a82c724-6934-4575-87d8-047eefdcf25d_vp1-api.blockchain.ibm.com:80  w/enrollID - user_type1_3fe7935193
-	[ibc-js] Registering  vp2-3a82c724-6934-4575-87d8-047eefdcf25d_vp2-api.blockchain.ibm.com:80  w/enrollID - user_type1_0c8e9f05b2
+	[ibc-js] Registering  vp1-3a82c724-6934-4575-87d8-047eefdcf25d_vp1-api.blockchain.ibm.com:80  w/enrollId - user_type1_3fe7935193
+	[ibc-js] Registering  vp2-3a82c724-6934-4575-87d8-047eefdcf25d_vp2-api.blockchain.ibm.com:80  w/enrollId - user_type1_0c8e9f05b2
 	[ibc-js] Registration success: user_type1_0c8e9f05b2
 	[ibc-js] Registration success: user_type1_3fe7935193
 
@@ -281,8 +281,7 @@ These instructions assume you have already created a service and are trying to d
 - There is a "Services" panel on this Bluemix dashboard near the bottom.  Look through your services and click your IBM Blockchain service square. 
 - Great now you should see a white page with the words "Welcome to the IBM Blockchain blah blah" and there should be a teal "LAUNCH" button on the right, click it. 
 - Fantastic job. Now you are on the monitor page and you should see 2 tables, though the bottom one may be empty.
-	- **Peer Logs** will be found in the top table. Find the row for the peer you have been talking to (probably peer 1) and then click the file like icon in the last row.
-		- It should have opened a new window. Congratulations you found your peer logs!
-		- In addition to this static view we have live **streaming peer logs** in the "View Logs" tab near the top of the page
+	- **Peer Logs** will be found in the "Logs" tab on the top navigation bar. Click it. 
+		- From the list of peers click one! It should have opened a new window. Congratulations you found your peer logs!
 	- **ChainCode Logs** will be found in the bottom table. There is one row for every chaincode and they are labeled using the same chaincode hash that was returned to you when it was deployed. Find the cc id you want, and then select the peer. Finally click the file like icon.
 		- It should have opened a new window. Congratulations you found your peer's chaincode's logs!
